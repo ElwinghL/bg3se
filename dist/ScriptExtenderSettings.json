@@ -1,0 +1,6 @@
+{
+  "CreateConsole": true,
+  "LogFailedCompile": false,
+  "SendCrashReports":false,
+  "DisableModValidation":true
+}
