@@ -60,12 +60,22 @@
        against libprotobuf-lite[d].lib. Force-link every .lib produced in
        the matching config's protobuf-build output folder instead of trying
        to enumerate exact Abseil library names by hand — safer against
-       Abseil adding/renaming/splitting internal targets across versions. -->
+       Abseil adding/renaming/splitting internal targets across versions.
+       IMPORTANT: protobuf's CMake build (cmake/abseil-cpp.cmake,
+       FetchContent) does NOT drop Abseil's .lib files flat under
+       protobuf-build\<Config>\ - each Abseil component builds into its
+       own subfolder, confirmed against a real CI run's link.exe/Lib.exe
+       invocations: protobuf-build\_deps\absl-build\absl\<module>\<Config>\
+       absl_<name>.lib (e.g. .../absl/base/Release/absl_base.lib). A flat
+       (non-recursive) glob at protobuf-build\<Config>\*.lib silently
+       matched zero files - Abseil symbols stayed unresolved across
+       several attempts before this was caught by inspecting the actual
+       Lib.exe output paths in a full (non-log-failed) run log. -->
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Debug|x64'">
-    <AbslLibs Include="$(SolutionDir)External\protobuf-build\Debug\*.lib" />
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Debug\*.lib" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Release|x64'">
-    <AbslLibs Include="$(SolutionDir)External\protobuf-build\Release\*.lib" />
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Release\*.lib" />
   </ItemGroup>
   <!-- @(AbslLibs) can't be embedded directly in an ItemDefinitionGroup's
        static AdditionalDependencies value (MSB4164 - item list expressions
