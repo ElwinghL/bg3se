@@ -47,8 +47,14 @@ tar -xf protoc.zip -C protoc/
 git clone https://github.com/protocolbuffers/protobuf --branch v36.1
 cmake -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHsc /D_ITERATOR_DEBUG_LEVEL=0" -S protobuf -B protobuf-build
 cd protobuf-build
-msbuild protobuf.slnx "/p:Configuration=Debug" /target:libprotobuf-lite /m /nologo /consoleloggerparameters:summary
-msbuild protobuf.slnx "/p:Configuration=Release" /target:libprotobuf-lite /m /nologo /consoleloggerparameters:summary
+rem NOTE: protobuf v22+ no longer vendors Abseil as a git submodule; CMake
+rem fetches it via FetchContent (cmake/abseil-cpp.cmake) into the same
+rem generated solution. Building only /target:libprotobuf-lite skips its
+rem Abseil static-lib dependencies, causing LNK2001/LNK1120 (unresolved
+rem absl:: externals) when BG3Extender links against libprotobuf-lite.lib.
+rem Build the whole solution instead so Abseil's targets are included.
+msbuild protobuf.slnx "/p:Configuration=Debug" /m /nologo /consoleloggerparameters:summary
+msbuild protobuf.slnx "/p:Configuration=Release" /m /nologo /consoleloggerparameters:summary
 cd ..
 
 rem ##### RAPIDJSON #####

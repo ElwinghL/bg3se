@@ -71,13 +71,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bg3se-release-${{ github.sha }}
-          # Paths are best-effort (no local Windows env to confirm MSBuild's
-          # actual OutDir for this solution) — adjust after the first real
-          # run if the artifact ends up empty.
+          # Confirmed from a real run's link step: BG3Extender.vcxproj's
+          # "Release" solution configuration maps to a project configuration
+          # named "Game Release" (output dir "x64\Game Release\"), not a
+          # plain "Release" folder — glob broadened to match.
           path: |
-            **/x64/Release/*.dll
-            **/x64/Release/*.pdb
-            **/x64/Release/*.exe
+            **/x64/*Release*/*.dll
+            **/x64/*Release*/*.pdb
+            **/x64/*Release*/*.exe
           if-no-files-found: warn
 
       - name: Create GitHub Release
