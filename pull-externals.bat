@@ -80,23 +80,47 @@ rem ##### VK #####
 
 git clone https://github.com/KhronosGroup/Vulkan-Headers Vulkan --branch vulkan-sdk-1.4.357
 
-rem ##### GOOGLE.PROTOBUF (NuGet, LuaDebugger.csproj) #####
+rem ##### NUGET PACKAGES FOR LuaDebugger.csproj (packages.config) #####
 rem LuaDebugger.csproj is an old-style project using packages.config (no
 rem PackageReference, no `nuget restore`/`msbuild /restore` step in this
-rem workflow) : implicit MSBuild restore for packages.config expects a
-rem net4x-named lib folder to consider a package compatible with the
-rem project's net48 target. Google.Protobuf dropped its `lib/net45/` folder
-rem starting with 3.35 (netstandard2.0/net8.0 only) - implicit restore then
-rem silently fails for the WHOLE packages.config (not just this entry,
-rem confirmed by "could not locate the assembly" MSB3245 warnings on every
-rem package.config reference, not just Google.Protobuf, in a failed CI run).
-rem Vendored explicitly here (same curl pattern as the other External
-rem dependencies above) instead of depending on that restore mechanism -
-rem version MUST match protoc's below (currently 36.1 -> NuGet 3.36.1),
-rem generated C# code is not binary-compatible across protobuf versions.
+rem workflow). Its implicit MSBuild restore turned out unreliable in CI :
+rem it silently fails for the WHOLE packages.config as soon as ONE
+rem referenced package has no net4x-named lib folder (confirmed by
+rem "could not locate the assembly" MSB3245 warnings on every single
+rem packages.config reference, not just the one at fault, in a failed CI
+rem run) - a regression triggered here by bumping Google.Protobuf to 3.36.1
+rem (dropped its lib/net45/ folder, netstandard2.0/net8.0 only from 3.35).
+rem Rather than depend on that fragile implicit-restore mechanism at all,
+rem every packages.config entry of LuaDebugger.csproj is vendored
+rem explicitly below (same curl pattern as the other External dependencies
+rem above), matching the exact id/version/HintPath already declared in
+rem LuaDebugger.csproj/packages.config. Google.Protobuf's version MUST
+rem match protoc's below (currently 36.1 -> NuGet 3.36.1) - generated C#
+rem code is not binary-compatible across protobuf versions; the other 4
+rem packages keep the versions already pinned in packages.config.
 curl -L https://api.nuget.org/v3-flatcontainer/google.protobuf/3.36.1/google.protobuf.3.36.1.nupkg -o google.protobuf.3.36.1.nupkg
 mkdir ..\packages\Google.Protobuf.3.36.1
 tar -xf google.protobuf.3.36.1.nupkg -C ..\packages\Google.Protobuf.3.36.1 lib/netstandard2.0/Google.Protobuf.dll
+
+curl -L https://api.nuget.org/v3-flatcontainer/newtonsoft.json/13.0.4/newtonsoft.json.13.0.4.nupkg -o newtonsoft.json.13.0.4.nupkg
+mkdir ..\packages\Newtonsoft.Json.13.0.4
+tar -xf newtonsoft.json.13.0.4.nupkg -C ..\packages\Newtonsoft.Json.13.0.4 lib/net45/Newtonsoft.Json.dll
+
+curl -L https://api.nuget.org/v3-flatcontainer/system.buffers/4.4.0/system.buffers.4.4.0.nupkg -o system.buffers.4.4.0.nupkg
+mkdir ..\packages\System.Buffers.4.4.0
+tar -xf system.buffers.4.4.0.nupkg -C ..\packages\System.Buffers.4.4.0 lib/netstandard2.0/System.Buffers.dll
+
+curl -L https://api.nuget.org/v3-flatcontainer/system.memory/4.5.3/system.memory.4.5.3.nupkg -o system.memory.4.5.3.nupkg
+mkdir ..\packages\System.Memory.4.5.3
+tar -xf system.memory.4.5.3.nupkg -C ..\packages\System.Memory.4.5.3 lib/netstandard2.0/System.Memory.dll
+
+curl -L https://api.nuget.org/v3-flatcontainer/system.numerics.vectors/4.4.0/system.numerics.vectors.4.4.0.nupkg -o system.numerics.vectors.4.4.0.nupkg
+mkdir ..\packages\System.Numerics.Vectors.4.4.0
+tar -xf system.numerics.vectors.4.4.0.nupkg -C ..\packages\System.Numerics.Vectors.4.4.0 lib/net46/System.Numerics.Vectors.dll
+
+curl -L https://api.nuget.org/v3-flatcontainer/system.runtime.compilerservices.unsafe/4.5.2/system.runtime.compilerservices.unsafe.4.5.2.nupkg -o system.runtime.compilerservices.unsafe.4.5.2.nupkg
+mkdir ..\packages\System.Runtime.CompilerServices.Unsafe.4.5.2
+tar -xf system.runtime.compilerservices.unsafe.4.5.2.nupkg -C ..\packages\System.Runtime.CompilerServices.Unsafe.4.5.2 lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.dll
 
 rem ##### ZIPLIB #####
 
