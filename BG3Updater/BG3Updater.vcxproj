@@ -105,7 +105,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\External\curl\lib;$(SolutionDir)\External\ziplib\Bin\x64\Debug;$(SolutionDir)$(Platform)\$(Configuration);$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\Detours\lib.X64</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\DWrite.dll"</Command>
+      <Command>if exist "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin" copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\DWrite.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -170,7 +170,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\External\curl\lib;$(SolutionDir)\External\ziplib\Bin\x64\Release;$(SolutionDir)$(Platform)\$(Configuration);$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\Detours\lib.X64</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\DWrite.dll"</Command>
+      <Command>if exist "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin" copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\DWrite.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

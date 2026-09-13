@@ -80,6 +80,24 @@ rem ##### VK #####
 
 git clone https://github.com/KhronosGroup/Vulkan-Headers Vulkan --branch vulkan-sdk-1.4.357
 
+rem ##### GOOGLE.PROTOBUF (NuGet, LuaDebugger.csproj) #####
+rem LuaDebugger.csproj is an old-style project using packages.config (no
+rem PackageReference, no `nuget restore`/`msbuild /restore` step in this
+rem workflow) : implicit MSBuild restore for packages.config expects a
+rem net4x-named lib folder to consider a package compatible with the
+rem project's net48 target. Google.Protobuf dropped its `lib/net45/` folder
+rem starting with 3.35 (netstandard2.0/net8.0 only) - implicit restore then
+rem silently fails for the WHOLE packages.config (not just this entry,
+rem confirmed by "could not locate the assembly" MSB3245 warnings on every
+rem package.config reference, not just Google.Protobuf, in a failed CI run).
+rem Vendored explicitly here (same curl pattern as the other External
+rem dependencies above) instead of depending on that restore mechanism -
+rem version MUST match protoc's below (currently 36.1 -> NuGet 3.36.1),
+rem generated C# code is not binary-compatible across protobuf versions.
+curl -L https://api.nuget.org/v3-flatcontainer/google.protobuf/3.36.1/google.protobuf.3.36.1.nupkg -o google.protobuf.3.36.1.nupkg
+mkdir ..\packages\Google.Protobuf.3.36.1
+tar -xf google.protobuf.3.36.1.nupkg -C ..\packages\Google.Protobuf.3.36.1 lib/netstandard2.0/Google.Protobuf.dll
+
 rem ##### ZIPLIB #####
 
 git clone https://github.com/Norbyte/ZipLib
