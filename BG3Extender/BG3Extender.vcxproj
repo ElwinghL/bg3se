@@ -53,6 +53,52 @@
     <TargetName>BG3ScriptExtender</TargetName>
     <CodeAnalysisRuleSet>..\CodeAnalysis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
+  <!-- BG3Extender.vcxproj predates protobuf's move to depending on Abseil
+       (protobuf v22+; this fork is pinned to v36.1, see pull-externals.bat)
+       and never listed the many small absl_*.lib files individually,
+       causing LNK2001/LNK1120 (unresolved absl:: externals) when linking
+       against libprotobuf-lite[d].lib. Force-link every .lib produced in
+       the matching config's protobuf-build output folder instead of trying
+       to enumerate exact Abseil library names by hand — safer against
+       Abseil adding/renaming/splitting internal targets across versions.
+       IMPORTANT: protobuf's CMake build (cmake/abseil-cpp.cmake,
+       FetchContent) does NOT drop Abseil's .lib files flat under
+       protobuf-build\<Config>\ - each Abseil component builds into its
+       own subfolder, confirmed against a real CI run's link.exe/Lib.exe
+       invocations: protobuf-build\_deps\absl-build\absl\<module>\<Config>\
+       absl_<name>.lib (e.g. .../absl/base/Release/absl_base.lib). A flat
+       (non-recursive) glob at protobuf-build\<Config>\*.lib silently
+       matched zero files - Abseil symbols stayed unresolved across
+       several attempts before this was caught by inspecting the actual
+       Lib.exe output paths in a full (non-log-failed) run log. -->
+  <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Debug|x64'">
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Debug\*.lib" />
+    <!-- utf8_range (Google, github.com/protocolbuffers/utf8_range) is a
+         separate small dependency fetched by protobuf's CMake build
+         alongside Abseil (not part of Abseil itself) - libprotobuf-lite
+         calls into it directly (utf8_range_IsValid/ValidPrefix). Confirmed
+         path from a real CI run's Lib.exe invocation:
+         protobuf-build\third_party\utf8_range\<Config>\libutf8_range.lib -->
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\third_party\utf8_range\Debug\*.lib" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Release|x64'">
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Release\*.lib" />
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\third_party\utf8_range\Release\*.lib" />
+  </ItemGroup>
+  <!-- @(AbslLibs) can't be embedded directly in an ItemDefinitionGroup's
+       static AdditionalDependencies value (MSB4164 - item list expressions
+       are not allowed on default metadata, evaluated before items exist).
+       A BeforeTargets="Link" Target doesn't work either here: VC++'s
+       "Link" item collection isn't populated yet by the time that target
+       fires, so batching over @(Link) there is a no-op. Converting the
+       item list to a plain semicolon-joined PROPERTY at project-evaluation
+       time (both ItemGroups above and this PropertyGroup are evaluated
+       eagerly, in document order, before any Target runs) sidesteps both
+       problems: property substitution ($(...)) is always valid in default
+       metadata, unlike an item list expression (@(...)). -->
+  <PropertyGroup>
+    <AbslLibsList>@(AbslLibs)</AbslLibsList>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Game Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -74,12 +120,12 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <ModuleDefinitionFile>Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lited.lib;detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lited.lib;$(AbslLibsList);detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\External\protobuf-build\Debug;$(SolutionDir)\External\Detours\lib.X64;$(SolutionDir)\x64\Debug;$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\VulkanLib\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>vulkan-1.dll;d3dcompiler_47.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\BG3ScriptExtender.dll"</Command>
+      <Command>if exist "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin" copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\BG3ScriptExtender.dll"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>python make_enumerations.py
@@ -115,7 +161,7 @@ $(SolutionDir)x64\Debug\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(Project
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <ModuleDefinitionFile>Exports.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir)\External\protobuf-build\Release;$(SolutionDir)\External\Detours\lib.X64;$(SolutionDir)\x64\Release;$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\VulkanLib\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lite.lib;detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lite.lib;$(AbslLibsList);detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>vulkan-1.dll;d3dcompiler_47.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
@@ -127,7 +173,7 @@ $(SolutionDir)\External\protoc\bin\protoc --cpp_out=$(SolutionDir)\BG3Extender\E
 $(SolutionDir)x64\Release\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(ProjectDir)Lua.bundle"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\BG3ScriptExtender.dll"</Command>
+      <Command>if exist "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin" copy /Y "$(TargetPath)" "D:\Apps\Steam\steamapps\common\Baldurs Gate 3\bin\BG3ScriptExtender.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
