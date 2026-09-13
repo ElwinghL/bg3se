@@ -67,6 +67,20 @@
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Release|x64'">
     <AbslLibs Include="$(SolutionDir)External\protobuf-build\Release\*.lib" />
   </ItemGroup>
+  <!-- @(AbslLibs) can't be embedded directly in an ItemDefinitionGroup's
+       static AdditionalDependencies value (MSB4164 - item list expressions
+       are not allowed on default metadata, evaluated before items exist).
+       A BeforeTargets="Link" Target doesn't work either here: VC++'s
+       "Link" item collection isn't populated yet by the time that target
+       fires, so batching over @(Link) there is a no-op. Converting the
+       item list to a plain semicolon-joined PROPERTY at project-evaluation
+       time (both ItemGroups above and this PropertyGroup are evaluated
+       eagerly, in document order, before any Target runs) sidesteps both
+       problems: property substitution ($(...)) is always valid in default
+       metadata, unlike an item list expression (@(...)). -->
+  <PropertyGroup>
+    <AbslLibsList>@(AbslLibs)</AbslLibsList>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Game Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -88,7 +102,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <ModuleDefinitionFile>Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lited.lib;detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lited.lib;$(AbslLibsList);detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\External\protobuf-build\Debug;$(SolutionDir)\External\Detours\lib.X64;$(SolutionDir)\x64\Debug;$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\VulkanLib\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>vulkan-1.dll;d3dcompiler_47.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -129,7 +143,7 @@ $(SolutionDir)x64\Debug\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(Project
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <ModuleDefinitionFile>Exports.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir)\External\protobuf-build\Release;$(SolutionDir)\External\Detours\lib.X64;$(SolutionDir)\x64\Release;$(SolutionDir)\External\SDL\lib\x64;$(SolutionDir)\External\VulkanLib\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lite.lib;detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxguid.lib;SDL2.lib;imgui.lib;vulkan-1.lib;CoreLib.lib;Optick.lib;LuaLib.lib;ws2_32.lib;shlwapi.lib;Rpcrt4.lib;libprotobuf-lite.lib;$(AbslLibsList);detours.lib;dbghelp.lib;version.lib;winhttp.lib;comctl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>vulkan-1.dll;d3dcompiler_47.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
@@ -631,19 +645,4 @@ $(SolutionDir)x64\Release\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(Proje
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-  <!-- Appends the wildcarded @(AbslLibs) glob (see the ItemGroup entries
-       above, one per Configuration|Platform) to the Link task's
-       AdditionalDependencies. This can't be done directly inside the
-       ItemDefinitionGroup default metadata above: MSBuild raises MSB4164
-       ("Item list expressions are not allowed on default metadata
-       values") because ItemDefinitionGroup metadata is evaluated before
-       items exist. Doing it in a Target (which runs after item
-       evaluation) is the standard workaround. -->
-  <Target Name="AppendAbslLibsToLink" BeforeTargets="Link">
-    <ItemGroup>
-      <Link>
-        <AdditionalDependencies>@(AbslLibs);%(Link.AdditionalDependencies)</AdditionalDependencies>
-      </Link>
-    </ItemGroup>
-  </Target>
 </Project>
