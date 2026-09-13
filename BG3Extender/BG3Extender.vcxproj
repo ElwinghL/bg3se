@@ -73,9 +73,17 @@
        Lib.exe output paths in a full (non-log-failed) run log. -->
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Debug|x64'">
     <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Debug\*.lib" />
+    <!-- utf8_range (Google, github.com/protocolbuffers/utf8_range) is a
+         separate small dependency fetched by protobuf's CMake build
+         alongside Abseil (not part of Abseil itself) - libprotobuf-lite
+         calls into it directly (utf8_range_IsValid/ValidPrefix). Confirmed
+         path from a real CI run's Lib.exe invocation:
+         protobuf-build\third_party\utf8_range\<Config>\libutf8_range.lib -->
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\third_party\utf8_range\Debug\*.lib" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)'=='Game Release|x64'">
     <AbslLibs Include="$(SolutionDir)External\protobuf-build\_deps\absl-build\absl\**\Release\*.lib" />
+    <AbslLibs Include="$(SolutionDir)External\protobuf-build\third_party\utf8_range\Release\*.lib" />
   </ItemGroup>
   <!-- @(AbslLibs) can't be embedded directly in an ItemDefinitionGroup's
        static AdditionalDependencies value (MSB4164 - item list expressions
