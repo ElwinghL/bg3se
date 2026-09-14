@@ -347,3 +347,6 @@ TestModule/Mods/BG3Ext_Testsuite/.vscode/settings.json
 BG3Extender/Lua.bundle
 BG3Extender/LuaScripts/.vscode
 BG3Extender/GameDefinitions/Generated
+
+# Sortie locale de build (ex: dist/DWrite.dll consomme par BG3Tools/game_deploy.py)
+/dist/
