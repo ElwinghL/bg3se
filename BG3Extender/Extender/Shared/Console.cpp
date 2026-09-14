@@ -2,10 +2,29 @@
 #include <Extender/Version.h>
 #include <Extender/Shared/Console.h>
 #include <Extender/ScriptExtender.h>
+#include <WS2tcpip.h>
 
 BEGIN_SE()
 
 char const* BuildDate = __DATE__ " " __TIME__;
+
+namespace
+{
+    // ANSI SGR color codes, replacing SetConsoleTextAttribute (no Win32
+    // console anymore) - any real terminal client (socat/nc into a
+    // terminal, or a Python client rendering these) understands these.
+    char const* AnsiColorFor(DebugMessageType type)
+    {
+        switch (type) {
+        case DebugMessageType::Error: return "\x1b[91m";
+        case DebugMessageType::Warning: return "\x1b[93m";
+        case DebugMessageType::Osiris: return "\x1b[96m";
+        case DebugMessageType::Info: return "\x1b[97m";
+        case DebugMessageType::Debug:
+        default: return "\x1b[37m";
+        }
+    }
+}
 
 void DebugConsole::SubmitTaskAndWait(bool server, std::function<void()> task)
 {
@@ -179,22 +198,56 @@ void DebugConsole::Print(DebugMessageType type, char const* msg)
     }
 }
 
-void DebugConsole::ConsoleThread()
+void DebugConsole::SendRaw(char const* buf, std::size_t length)
 {
-    while (consoleRunning_) {
-        wchar_t tempBuf;
-        DWORD tempRead{ 0 };
-        if (!ReadConsoleW(GetStdHandle(STD_INPUT_HANDLE), &tempBuf, 1, &tempRead, NULL)
-            || !tempRead
-            || tempBuf != '\r') {
-            continue;
+    if (clientSocket_ == INVALID_SOCKET) return;
+
+    std::lock_guard<std::mutex> _(sendMutex_);
+    std::size_t sent = 0;
+    while (sent < length) {
+        int n = send(clientSocket_, buf + sent, (int)(length - sent), 0);
+        if (n <= 0) {
+            // Peer gone - let the accept thread's InputLoop notice via RecvLine
+            // and close/reset clientSocket_ itself (single writer/reader here).
+            return;
+        }
+        sent += (std::size_t)n;
+    }
+}
+
+void DebugConsole::LocalPrint(DebugMessageType type, char const* msg)
+{
+    if (enabled_ && (!inputEnabled_ || !silence_)) {
+        SendRaw(AnsiColorFor(type), strlen(AnsiColorFor(type)));
+        SendRaw(msg, strlen(msg));
+        SendRaw("\x1b[0m\r\n", 6);
+    }
+
+    if (logToFile_) {
+        logFile_.write(msg, strlen(msg));
+        logFile_.write("\r\n", 2);
+        logFile_.flush();
+    }
+}
+
+bool DebugConsole::RecvLine(std::string& line)
+{
+    line.clear();
+    for (;;) {
+        char ch;
+        int n = recv(clientSocket_, &ch, 1, 0);
+        if (n <= 0) {
+            return false;
         }
 
-        DEBUG("Entering server Lua console.");
+        if (ch == '\n') {
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
+            return true;
+        }
 
-        InputLoop();
-
-        DEBUG("Exiting console mode.");
+        line += ch;
     }
 }
 
@@ -202,32 +255,18 @@ void DebugConsole::InputLoop()
 {
     std::string line;
     while (consoleRunning_) {
-        UpdateConsoleSize();
-
         inputEnabled_ = true;
-        if (serverContext_) {
-            std::cout << "S";
-        } else {
-            std::cout << "C";
-        }
+        std::string prompt = serverContext_ ? "S" : "C";
+        prompt += multiLineMode_ ? " -->> " : " >> ";
+        SendRaw(prompt.data(), prompt.size());
 
-        if (multiLineMode_) {
-            std::cout << " -->> ";
-        } else {
-            std::cout << " >> ";
-        }
-
-        std::cout.flush();
-        std::getline(std::cin, line);
-
-        if (std::cin.fail() || std::cin.eof()) {
-            std::cin.clear();
-            multiLineMode_ = false;
-            multiLineCommand_.clear();
-            std::cout << std::endl;
-        }
-
+        bool got = RecvLine(line);
         inputEnabled_ = false;
+
+        if (!got) {
+            // Client disconnected - go back to waiting for a new connection.
+            break;
+        }
 
         if (!multiLineMode_) {
             if (line == "exit") {
@@ -253,40 +292,65 @@ void DebugConsole::InputLoop()
     }
 }
 
-void DebugConsole::UpdateConsoleSize()
+void DebugConsole::SocketAcceptThread()
 {
-    CONSOLE_SCREEN_BUFFER_INFOEX buf;
-    buf.cbSize = sizeof(buf);
-    GetConsoleScreenBufferInfoEx(GetStdHandle(STD_OUTPUT_HANDLE), &buf);
+    while (consoleRunning_ && listenSocket_ != INVALID_SOCKET) {
+        sockaddr_in addr;
+        int addrlen = sizeof(addr);
+        clientSocket_ = accept(listenSocket_, (sockaddr*)&addr, &addrlen);
+        if (clientSocket_ == INVALID_SOCKET) {
+            continue;
+        }
 
-    auto width = buf.srWindow.Right - buf.srWindow.Left + 1;
-    auto height = buf.srWindow.Bottom - buf.srWindow.Top + 1;
+        DEBUG("******************************************************************************");
+        DEBUG("*                                                                            *");
+        DEBUG("*                     BG3 Script Extender Debug Console                      *");
+        DEBUG("*                                                                            *");
+        DEBUG("******************************************************************************");
+        DEBUG("");
+        DEBUG("BG3Ext v%d built on %s", CurrentVersion, BuildDate);
 
-    if (width_ != width || height_ != height) {
-        width_ = width;
-        height_ = height;
-        resized_ = true;
+        InputLoop();
+
+        closesocket(clientSocket_);
+        clientSocket_ = INVALID_SOCKET;
     }
 }
 
 void DebugConsole::Create()
 {
-    Console::Create();
+    // NOTE: deliberately does NOT call Console::Create() - that path
+    // (AllocConsole/freopen_s) is what 11a replaces. CoreLib::Console
+    // (also used standalone by BG3Updater) is left untouched.
     EnableOutput(true);
+    created_ = true;
+
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+    uint32_t ip;
+    inet_pton(AF_INET, "127.0.0.1", &ip);
+    listenSocket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.S_un.S_addr = ip;
+    addr.sin_port = htons((uint16_t)gExtender->GetConfig().ConsolePort);
+    if (listenSocket_ == INVALID_SOCKET
+        || bind(listenSocket_, (sockaddr*)&addr, sizeof(addr)) != 0
+        || listen(listenSocket_, 1) != 0) {
+        ERR("Could not start console socket on port %d: %d", gExtender->GetConfig().ConsolePort, WSAGetLastError());
+        if (listenSocket_ != INVALID_SOCKET) {
+            closesocket(listenSocket_);
+            listenSocket_ = INVALID_SOCKET;
+        }
+        return;
+    }
 
     consoleRunning_ = true;
     serverContext_ = !gExtender->GetConfig().DefaultToClientConsole;
 
-    SetConsoleTitleW(L"BG3 Script Extender Debug Console");
-    DEBUG("******************************************************************************");
-    DEBUG("*                                                                            *");
-    DEBUG("*                     BG3 Script Extender Debug Console                      *");
-    DEBUG("*                                                                            *");
-    DEBUG("******************************************************************************");
-    DEBUG("");
-    DEBUG("BG3Ext v%d built on %s", CurrentVersion, BuildDate);
-
-    consoleThread_ = new std::thread(&DebugConsole::ConsoleThread, this);
+    acceptThread_ = new std::thread(&DebugConsole::SocketAcceptThread, this);
 }
 
 
