@@ -44,6 +44,14 @@ jobs:
         shell: cmd
         run: generate-property-maps.bat
 
-      - name: Build BG3Tools.sln (Game Release|x64)
+      - name: Build BG3Extender (Game Release|x64)
         shell: cmd
-        run: msbuild BG3Tools.sln "/p:Configuration=Game Release" /p:Platform=x64 /t:Build /m /nologo /verbosity:normal /consoleloggerparameters:summary
+        # /t:BG3Extender (pas /t:Build sur toute la .sln) : ne construit que
+        # BG3Extender.vcxproj (là où vit RemoteConsole) + ses dépendances de
+        # solution (CoreLib, LuaLib, Optick, Detours...) -- pas les projets
+        # sans rapport avec ce patch (LuaDebugger.csproj, dont le restore
+        # NuGet Google.Protobuf échoue en CI ; BG3Updater/TinyCrypt, dont le
+        # PostBuildEvent copie vers un chemin Windows local d'Elwingh qui
+        # n'existe pas sur ce runner). PostBuildEventUseInBuild=false évite
+        # le même souci pour le PostBuildEvent de BG3Extender lui-même.
+        run: msbuild BG3Tools.sln "/p:Configuration=Game Release" /p:Platform=x64 /p:PostBuildEventUseInBuild=false /t:BG3Extender /m /nologo /verbosity:normal /consoleloggerparameters:summary
