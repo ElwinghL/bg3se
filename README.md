@@ -5,10 +5,12 @@
 > [BG3Tools](https://github.com/ElwinghL/BG3Tools) (`Tools/BG3 Script
 > Extender/`). The bulk of the code below is Norbyte's own upstream work;
 > the changes added on top in this fork are developed with heavy use of AI
-> coding assistants. Given the ethical, moral, and ecological concerns
-> this raises, those changes remain experimental and personal — they are
-> not intended to end up used by the wider modding/dev community, and
-> should be judged as such.
+> coding assistants.
+>
+> ⚠️ **About the use of AI**: given the ethical, moral, and ecological
+> concerns this raises, those changes remain experimental and personal —
+> they are not intended to end up used by the wider modding/dev
+> community, and should be judged as such.
 
 [Downloads available here](https://github.com/Norbyte/bg3se/releases)
 
