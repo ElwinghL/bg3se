@@ -1,18 +1,17 @@
 name: Build BG3Extender (Game Release)
 
-# Vérifie que BG3Tools.sln compile via la séquence officielle
-# (pull-externals.bat + generate-proto.bat + generate-property-maps.bat +
-# msbuild, voir publish.ps1 pour la commande de référence), faute de
-# toolchain Windows/MSVC local. Cette branche corrige spécifiquement un
-# problème préexistant, sans rapport avec une fonctionnalité donnée :
-# protobuf v36.1 requiert de lier explicitement les bibliothèques Abseil
-# (log/strings/status/...) que BG3Extender.vcxproj ne référençait pas,
-# causant des LNK2001 sur tout build actuel de ce fork.
+# Build de vérification pour le pont RemoteConsole (branche
+# feat/RemoteConsoleTCPBridge) : aucun toolchain Windows/MSVC n'est
+# disponible dans l'environnement où ce patch a été écrit, donc ce
+# workflow reproduit la séquence officielle (pull-externals.bat +
+# generate-proto.bat + generate-property-maps.bat + msbuild, voir
+# publish.ps1 pour la commande de référence) sur un runner Windows hébergé,
+# uniquement pour valider que le code compile.
 
 on:
   push:
     branches:
-      - fix/AbseilLinkMissing
+      - feat/RemoteConsoleTCPBridge
   workflow_dispatch:
 
 jobs:
@@ -44,14 +43,6 @@ jobs:
         shell: cmd
         run: generate-property-maps.bat
 
-      - name: Build BG3Extender (Game Release|x64)
+      - name: Build BG3Tools.sln (Game Release|x64)
         shell: cmd
-        # /t:BG3Extender (pas /t:Build sur toute la .sln) : ne construit que
-        # BG3Extender.vcxproj (là où vit RemoteConsole) + ses dépendances de
-        # solution (CoreLib, LuaLib, Optick, Detours...) -- pas les projets
-        # sans rapport avec ce patch (LuaDebugger.csproj, dont le restore
-        # NuGet Google.Protobuf échoue en CI ; BG3Updater/TinyCrypt, dont le
-        # PostBuildEvent copie vers un chemin Windows local d'Elwingh qui
-        # n'existe pas sur ce runner). PostBuildEventUseInBuild=false évite
-        # le même souci pour le PostBuildEvent de BG3Extender lui-même.
-        run: msbuild BG3Tools.sln "/p:Configuration=Game Release" /p:Platform=x64 /p:PostBuildEventUseInBuild=false /t:BG3Extender /m /nologo /verbosity:normal /consoleloggerparameters:summary
+        run: msbuild BG3Tools.sln "/p:Configuration=Game Release" /p:Platform=x64 /t:Build /m /nologo /verbosity:normal /consoleloggerparameters:summary

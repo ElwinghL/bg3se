@@ -34,6 +34,11 @@ void LuaDebugThreadRunner(LuaDebugInterface& intf)
     intf.Run();
 }
 
+void RemoteConsoleThreadRunner(RemoteConsoleInterface& intf)
+{
+    intf.Run();
+}
+
 ScriptExtender::ScriptExtender()
     : server_(config_),
     client_(config_),
@@ -145,6 +150,17 @@ void ScriptExtender::Initialize()
                 config_.LuaDebuggerPort, lua::dbg::DebugMessageHandler::ProtocolVersion);
         } catch (std::exception& e) {
             ERR("Lua debugger startup failed: %s", e.what());
+        }
+    }
+
+    if (config_.EnableRemoteConsole && remoteConsoleThread_ == nullptr) {
+        DEBUG("Starting remote console server");
+        try {
+            remoteConsoleInterface_ = std::make_unique<RemoteConsoleInterface>((uint16_t)config_.RemoteConsolePort);
+            remoteConsoleThread_ = new std::thread(std::bind(RemoteConsoleThreadRunner, std::ref(*remoteConsoleInterface_)));
+            DEBUG("Remote console listening on 127.0.0.1:%d", config_.RemoteConsolePort);
+        } catch (std::exception& e) {
+            ERR("Remote console startup failed: %s", e.what());
         }
     }
 

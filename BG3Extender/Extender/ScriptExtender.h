@@ -13,6 +13,7 @@
 #include <Extender/Shared/UpdaterAPI.h>
 #include <Lua/Debugger/LuaDebugger.h>
 #include <Lua/Debugger/LuaDebugMessages.h>
+#include <Extender/Shared/RemoteConsole.h>
 #include <Lua/Shared/LuaBundle.h>
 #include <Lua/Shared/Proxies/LuaCppClass.h>
 #include <GameHooks/OsirisWrappers.h>
@@ -79,6 +80,11 @@ public:
     inline lua::dbg::DebugMessageHandler* GetLuaDebugMessageHandler()
     {
         return luaDebugMsgHandler_.get();
+    }
+
+    inline RemoteConsoleInterface* GetRemoteConsole()
+    {
+        return remoteConsoleInterface_.get();
     }
 
     ExtensionStateBase* GetCurrentExtensionState();
@@ -183,6 +189,9 @@ private:
     std::unique_ptr<LuaDebugInterface> luaDebugInterface_;
     std::unique_ptr<lua::dbg::DebugMessageHandler> luaDebugMsgHandler_;
     std::unique_ptr<lua::dbg::Debugger> luaDebugger_;
+
+    std::thread* remoteConsoleThread_{ nullptr };
+    std::unique_ptr<RemoteConsoleInterface> remoteConsoleInterface_;
 
     GameVersionInfo gameVersion_;
     ULONGLONG startTime_{ 0 };

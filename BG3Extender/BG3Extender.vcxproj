@@ -190,6 +190,7 @@ $(SolutionDir)x64\Release\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(Proje
     <ClInclude Include="Extender\Server\ScriptExtenderServer.h" />
     <ClInclude Include="Extender\Server\ServerNetworking.h" />
     <ClInclude Include="Extender\Shared\Console.h" />
+    <ClInclude Include="Extender\Shared\RemoteConsole.h" />
     <ClInclude Include="Extender\Shared\DWriteWrapper.h" />
     <ClInclude Include="Extender\Shared\ExtenderConfig.h" />
     <ClInclude Include="Extender\Shared\ExtenderNet.h" />
@@ -420,6 +421,7 @@ $(SolutionDir)x64\Release\ResourceBundler.exe "$(ProjectDir)LuaScripts" "$(Proje
     <ClCompile Include="Extender\Server\ScriptExtenderServer.cpp" />
     <ClCompile Include="Extender\Server\ServerNetworking.cpp" />
     <ClCompile Include="Extender\Shared\Console.cpp" />
+    <ClCompile Include="Extender\Shared\RemoteConsole.cpp" />
     <ClCompile Include="Extender\Shared\CrashReporter.cpp" />
     <ClCompile Include="Extender\Shared\dllmain.cpp" />
     <ClCompile Include="Extender\Shared\DWriteWrapper.cpp" />

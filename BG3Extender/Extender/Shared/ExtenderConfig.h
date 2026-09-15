@@ -57,11 +57,13 @@ struct ExtenderConfig
     bool ClearOnReset{ true };
     uint32_t DebuggerPort{ 9999 };
     uint32_t LuaDebuggerPort{ 9998 };
-    // TCP loopback port for the interactive Lua console (DebugConsole), replacing
-    // the native AllocConsole()-based console (11a - laggy under Wine/Proton's GUI
-    // rendering). Connect a plain-text terminal client (socat/nc) to 127.0.0.1 on
-    // this port instead of relying on the Win32 console window.
-    uint32_t ConsolePort{ 9997 };
+    // Pont TCP "console distante" pour outils externes (ex: bg3_mod_tui) --
+    // relaie les mêmes commandes que la console debug native (server/client/
+    // reset/silence/clear/help + exécution Lua) sans dépendre de
+    // CreateConsole/AllocConsole. Port par défaut aligné sur le client
+    // Python (bg3_mod_tui/bg3se_remote_console.py).
+    bool EnableRemoteConsole{ false };
+    uint32_t RemoteConsolePort{ 9997 };
     uint32_t DebugFlags{ 0 };
     std::wstring LogDirectory;
     std::wstring LuaBuiltinResourceDirectory;
