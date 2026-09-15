@@ -1,5 +1,7 @@
 # Norbyte's Baldur's Gate 3 Script Extender
 
+*[Version française](./README.fr.md)*
+
 > **About this fork**: this is [ElwinghL](https://github.com/ElwinghL)'s
 > fork of Norbyte's upstream Script Extender, tracked as a submodule from
 > [BG3Tools](https://github.com/ElwinghL/BG3Tools) (`Tools/BG3 Script
