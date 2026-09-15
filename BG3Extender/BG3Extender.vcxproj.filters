@@ -110,6 +110,9 @@
     <ClCompile Include="Extender\Shared\Console.cpp">
       <Filter>Extender\Shared</Filter>
     </ClCompile>
+    <ClCompile Include="Extender\Shared\RemoteConsole.cpp">
+      <Filter>Extender\Shared</Filter>
+    </ClCompile>
     <ClCompile Include="Lua\Shared\Proxies\LuaObjectProxies.cpp">
       <Filter>Lua\Shared\Proxies</Filter>
     </ClCompile>
@@ -337,6 +340,9 @@
       <Filter>Extender\Server</Filter>
     </ClInclude>
     <ClInclude Include="Extender\Shared\Console.h">
+      <Filter>Extender\Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="Extender\Shared\RemoteConsole.h">
       <Filter>Extender\Shared</Filter>
     </ClInclude>
     <ClInclude Include="Extender\Shared\ScriptExtenderBase.h">

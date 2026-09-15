@@ -1,11 +1,68 @@
 #include <stdafx.h>
 #include <Extender/Version.h>
 #include <Extender/Shared/Console.h>
+#include <Extender/Shared/RemoteConsole.h>
 #include <Extender/ScriptExtender.h>
+#include <algorithm>
 
 BEGIN_SE()
 
 char const* BuildDate = __DATE__ " " __TIME__;
+
+namespace
+{
+    // Complétion façon shell : énumère les clés (string) de `table` dont le
+    // nom commence par `prefix`, la table étant déjà au sommet de la pile
+    // Lua (non consommée).
+    void CollectMatchingKeys(lua_State* L, std::string const& prefix, std::vector<std::string>& results)
+    {
+        lua_pushnil(L);
+        while (lua_next(L, -2) != 0) {
+            if (lua_type(L, -2) == LUA_TSTRING) {
+                std::string key(lua_tostring(L, -2));
+                if (key.compare(0, prefix.size(), prefix) == 0) {
+                    results.push_back(key);
+                }
+            }
+            lua_pop(L, 1); // pop la valeur, garde la clé pour lua_next
+        }
+    }
+
+    // Complétion de préfixe global, avec un niveau de nesting via '.' (ex.
+    // "Osi.Add..." complète dans la table globale "Osi"), pour couvrir les
+    // appels usuels (`Osi.*`, `Ext.*`) sans avoir à réimplémenter un vrai
+    // résolveur d'expression Lua.
+    std::vector<std::string> CompleteGlobalPrefix(lua_State* L, std::string const& partial)
+    {
+        std::vector<std::string> results;
+
+        auto dot = partial.rfind('.');
+        std::string ns = dot == std::string::npos ? std::string() : partial.substr(0, dot);
+        std::string prefix = dot == std::string::npos ? partial : partial.substr(dot + 1);
+
+        lua_pushglobaltable(L);
+        if (!ns.empty()) {
+            lua_getfield(L, -1, ns.c_str());
+            lua_remove(L, -2);
+            if (!lua_istable(L, -1)) {
+                lua_pop(L, 1);
+                return results;
+            }
+        }
+
+        CollectMatchingKeys(L, prefix, results);
+        lua_pop(L, 1);
+
+        if (!ns.empty()) {
+            for (auto& key : results) {
+                key = ns + "." + key;
+            }
+        }
+
+        std::sort(results.begin(), results.end());
+        return results;
+    }
+}
 
 void DebugConsole::SubmitTaskAndWait(bool server, std::function<void()> task)
 {
@@ -167,6 +224,23 @@ void DebugConsole::HandleCommand(std::string const& cmd)
     }
 }
 
+std::vector<std::string> DebugConsole::HandleCompletionRequest(std::string const& partial)
+{
+    std::vector<std::string> results;
+
+    SubmitTaskAndWait(serverContext_, [this, &partial, &results]() {
+        auto state = gExtender->GetCurrentExtensionState();
+        if (!state) return;
+
+        LuaVirtualPin pin(*state);
+        if (!pin) return;
+
+        results = CompleteGlobalPrefix(pin->GetState(), partial);
+    });
+
+    return results;
+}
+
 void DebugConsole::Print(DebugMessageType type, char const* msg)
 {
     Console::Print(type, msg);
@@ -175,6 +249,11 @@ void DebugConsole::Print(DebugMessageType type, char const* msg)
         auto debugger = gExtender->GetLuaDebugger();
         if (debugger && debugger->IsDebuggerReady()) {
             debugger->OnLogMessage(type, msg);
+        }
+
+        auto remoteConsole = gExtender->GetRemoteConsole();
+        if (remoteConsole && remoteConsole->IsConnected()) {
+            remoteConsole->SendLine(msg);
         }
     }
 }

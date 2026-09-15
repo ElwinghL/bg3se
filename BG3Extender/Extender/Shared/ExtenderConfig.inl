@@ -35,6 +35,8 @@ void ApplyConfig(ExtenderConfig& config, Document& root)
 
     ConfigGet(root, "DebuggerPort", config.DebuggerPort);
     ConfigGet(root, "LuaDebuggerPort", config.LuaDebuggerPort);
+    ConfigGet(root, "EnableRemoteConsole", config.EnableRemoteConsole);
+    ConfigGet(root, "RemoteConsolePort", config.RemoteConsolePort);
     ConfigGet(root, "DebugFlags", config.DebugFlags);
 
     ConfigGet(root, "LogDirectory", config.LogDirectory);

@@ -57,6 +57,13 @@ struct ExtenderConfig
     bool ClearOnReset{ true };
     uint32_t DebuggerPort{ 9999 };
     uint32_t LuaDebuggerPort{ 9998 };
+    // Pont TCP "console distante" pour outils externes (ex: bg3_mod_tui) --
+    // relaie les mêmes commandes que la console debug native (server/client/
+    // reset/silence/clear/help + exécution Lua) sans dépendre de
+    // CreateConsole/AllocConsole. Port par défaut aligné sur le client
+    // Python (bg3_mod_tui/bg3se_remote_console.py).
+    bool EnableRemoteConsole{ false };
+    uint32_t RemoteConsolePort{ 9997 };
     uint32_t DebugFlags{ 0 };
     std::wstring LogDirectory;
     std::wstring LuaBuiltinResourceDirectory;
