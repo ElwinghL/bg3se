@@ -1,0 +1,49 @@
+name: Build BG3Extender (Game Release)
+
+# Vérifie que BG3Tools.sln compile via la séquence officielle
+# (pull-externals.bat + generate-proto.bat + generate-property-maps.bat +
+# msbuild, voir publish.ps1 pour la commande de référence), faute de
+# toolchain Windows/MSVC local. Cette branche corrige spécifiquement un
+# problème préexistant, sans rapport avec une fonctionnalité donnée :
+# protobuf v36.1 requiert de lier explicitement les bibliothèques Abseil
+# (log/strings/status/...) que BG3Extender.vcxproj ne référençait pas,
+# causant des LNK2001 sur tout build actuel de ce fork.
+
+on:
+  push:
+    branches:
+      - fix/AbseilLinkMissing
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up Python (pour make_enumerations.py / make_property_map.py)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Pull external dependencies
+        shell: cmd
+        run: pull-externals.bat
+
+      - name: Generate protobuf sources
+        shell: cmd
+        run: generate-proto.bat
+
+      - name: Generate property maps / enumerations
+        shell: cmd
+        run: generate-property-maps.bat
+
+      - name: Build BG3Tools.sln (Game Release|x64)
+        shell: cmd
+        run: msbuild BG3Tools.sln "/p:Configuration=Game Release" /p:Platform=x64 /t:Build /m /nologo /verbosity:normal /consoleloggerparameters:summary
